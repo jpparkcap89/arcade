@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Notes Smart Search</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        appleYellow: '#e3ab00',
+                        appleYellowDark: '#f5c518',
+                        appleGray: {
+                            50: '#f9f9fb',
+                            100: '#f0f0f4',
+                            200: '#e1e1e8',
+                            300: '#ceced9',
+                            400: '#9e9eb0',
+                            500: '#727285',
+                            600: '#525266',
+                            700: '#383848',
+                            800: '#232330',
+                            900: '#15151f',
+                            950: '#0c0c12'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.7);
+        }
+        .highlight-match {
+            background-color: rgba(227, 171, 0, 0.35);
+            border-radius: 2px;
+            padding: 0 2px;
+            font-weight: 600;
+        }
+        .dark .highlight-match {
+            background-color: rgba(245, 197, 24, 0.45);
+            color: #ffffff;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased select-none">
+
+    <div id="app" class="flex flex-col h-screen overflow-hidden">
+        <!-- Top Title Bar / Header -->
+        <header class="h-12 bg-slate-200/80 dark:bg-slate-900/80 backdrop-blur border-b border-slate-300/60 dark:border-slate-800 flex items-center justify-between px-4 flex-shrink-0 z-20">
+            <div class="flex items-center space-x-3">
+                <div class="flex space-x-1.5">
+                    <div class="w-3 h-3 rounded-full bg-red-500/90 inline-block"></div>
+                    <div class="w-3 h-3 rounded-full bg-amber-500/90 inline-block"></div>
+                    <div class="w-3 h-3 rounded-full bg-green-500/90 inline-block"></div>
+                </div>
+                <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide uppercase ml-2">Apple Notes Search Intelligence Lab</span>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <!-- Architecture Docs Modal Toggle -->
+                <button id="btn-show-docs" class="text-xs bg-slate-300/70 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-md font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-book-open text-amber-500"></i>
+                    <span>Search Engine Architecture Evidence</span>
+                </button>
+                <!-- Dark Mode Toggle -->
+                <button id="theme-toggle" class="p-1.5 rounded-md hover:bg-slate-300/60 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition" title="Toggle Light/Dark Theme">
+                    <i class="fa-solid fa-moon dark:hidden"></i>
+                    <i class="fa-solid fa-sun hidden dark:block text-amber-400"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Workspace Container -->
+        <div class="flex flex-1 overflow-hidden">
+            
+            <!-- Sidebar: Folders & Search Filters -->
+            <aside id="sidebar" class="w-64 bg-slate-200/50 dark:bg-slate-900/50 border-r border-slate-300/60 dark:border-slate-800 flex flex-col flex-shrink-0 transition-all duration-300">
+                <div class="p-3">
+                    <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 mb-2">Folders</div>
+                    <nav class="space-y-0.5" id="folder-list">
+                        <button data-folder="all" class="folder-btn active w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm font-medium bg-amber-500/15 text-amber-700 dark:text-amber-400">
+                            <span class="flex items-center gap-2.5">
+                                <i class="fa-regular fa-folder text-amber-500"></i> All Notes
+                            </span>
+                            <span id="count-all" class="text-xs text-slate-400">0</span>
+                        </button>
+                        <button data-folder="work" class="folder-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-300/50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300">
+                            <span class="flex items-center gap-2.5">
+                                <i class="fa-regular fa-briefcase text-slate-400"></i> Work & Research
+                            </span>
+                            <span id="count-work" class="text-xs text-slate-400">0</span>
+                        </button>
+                        <button data-folder="personal" class="folder-btn w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-sm font-medium hover:bg-slate-300/50 dark:hover:bg-slate-800/60 text-slate-700 dark:text-slate-300">
+                            <span class="flex items-center gap-2.5">
+                                <i class="fa-regular fa-user text-slate-400"></i> Personal
+                            </span>
+                            <span id="count-personal" class="text-xs text-slate-400">0</span>
+                        </button>
+                    </nav>
+
+                    <!-- Smart Tokenized Filter Suggestions -->
+                    <div class="mt-6">
+                        <div class="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider px-2 mb-2">Smart Token Filters</div>
+                        <div class="flex flex-wrap gap-1.5 px-1" id="smart-tokens-container">
+                            <!-- Tokens injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-auto p-3 border-t border-slate-300/60 dark:border-slate-800/80">
+                    <button id="btn-new-note" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold py-2 px-3 rounded-lg text-sm transition flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-pen-to-square"></i> New Note
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Middle List: Note List & Search Input -->
+            <section class="w-80 border-r border-slate-300/60 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950 flex flex-col flex-shrink-0">
+                <!-- Search Bar Section -->
+                <div class="p-3 border-b border-slate-300/40 dark:border-slate-800/60">
+                    <div class="relative flex items-center">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 text-slate-400 text-xs pointer-events-none"></i>
+                        <input type="text" id="search-input" placeholder="Search notes, OCR, attachments, or 'notes with images'..." 
+                            class="w-full bg-slate-200/70 dark:bg-slate-800/80 text-slate-900 dark:text-slate-100 pl-8 pr-8 py-1.5 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-amber-500/50 transition">
+                        <button id="search-clear" class="hidden absolute right-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs">
+                            <i class="fa-solid fa-circle-xmark"></i>
+                        </button>
+                    </div>
+
+                    <!-- Token Active Bar -->
+                    <div id="active-tokens-bar" class="hidden flex flex-wrap gap-1 mt-2 pt-2 border-t border-slate-200 dark:border-slate-800"></div>
+
+                    <!-- Quick Filter Tags -->
+                    <div class="flex gap-1 mt-2 overflow-x-auto custom-scrollbar pb-1 text-[11px]">
+                        <button data-quick="all" class="quick-filter-chip bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium active-chip">All</button>
+                        <button data-quick="has:ocr" class="quick-filter-chip bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium">Handwriting/OCR</button>
+                        <button data-quick="has:image" class="quick-filter-chip bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium">Images</button>
+                        <button data-quick="is:locked" class="quick-filter-chip bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full font-medium">Locked</button>
+                    </div>
+                </div>
+
+                <!-- Notes List Container -->
+                <div id="notes-list-container" class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-slate-200/60 dark:divide-slate-800/60">
+                    <!-- Dynamic rendering of Top Hits and Standard Results -->
+                </div>
+            </section>
+
+            <!-- Main Right: Active Note Editor / Search Detail View -->
+            <main class="flex-1 bg-white dark:bg-slate-900 flex flex-col overflow-hidden relative">
+                
+                <!-- Editor Top Header Bar -->
+                <div id="editor-header" class="h-12 border-b border-slate-200 dark:border-slate-800/80 flex items-center justify-between px-4 bg-slate-50/50 dark:bg-slate-900/50">
+                    <div class="flex items-center space-x-2 text-xs text-slate-400" id="editor-folder-path">
+                        <span>Notes</span> <i class="fa-solid fa-chevron-right text-[9px]"></i> <span id="editor-folder-name" class="font-medium text-slate-600 dark:text-slate-300">All</span>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-toggle-lock" class="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition" title="Toggle Lock status">
+                            <i id="lock-icon" class="fa-solid fa-lock-open"></i>
+                        </button>
+                        <button id="btn-delete-note" class="p-1.5 rounded hover:bg-red-500/10 hover:text-red-600 text-slate-500 transition" title="Delete Note">
+                            <i class="fa-regular fa-trash-can"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Editor Body -->
+                <div id="editor-container" class="flex-1 overflow-y-auto p-6 custom-scrollbar max-w-4xl mx-auto w-full">
+                    <div id="editor-unlocked-view" class="space-y-4">
+                        <input id="note-title-input" type="text" placeholder="Title" 
+                            class="w-full text-2xl font-bold bg-transparent text-slate-900 dark:text-slate-100 border-b border-transparent focus:border-amber-500 focus:outline-none pb-1">
+                        
+                        <div class="text-xs text-slate-400 font-medium flex items-center gap-3">
+                            <span id="note-date-display">Date</span>
+                            <span id="note-category-badge" class="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-semibold">Category</span>
+                        </div>
+
+                        <!-- Editable Content -->
+                        <div id="note-body-input" contenteditable="true" 
+                            class="w-full min-h-[160px] text-slate-800 dark:text-slate-200 leading-relaxed focus:outline-none text-sm space-y-2">
+                        </div>
+
+                        <!-- Attachments & Simulated Intelligence Metadata Box -->
+                        <div id="attachments-section" class="pt-4 border-t border-slate-200 dark:border-slate-800">
+                            <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Embedded Attachments & Simulated AI Intelligence</h4>
+                            <div id="attachments-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <!-- Attachments rendered dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Locked View Overlay -->
+                    <div id="editor-locked-view" class="hidden flex flex-col items-center justify-center h-96 text-center">
+                        <div class="w-16 h-16 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center mb-4 text-amber-500 text-2xl shadow-inner">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 dark:text-slate-100 mb-1">This note is password protected</h3>
+                        <p class="text-xs text-slate-400 max-w-sm mb-4">Enter master passcode (default: <span class="font-mono text-amber-500">1234</span>) to view content and search results.</p>
+                        <div class="flex items-center gap-2">
+                            <input type="password" id="unlock-passcode-input" placeholder="Passcode" class="bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-amber-500 w-32">
+                            <button id="btn-unlock-note" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-semibold px-3 py-1.5 rounded-lg text-xs transition">Unlock</button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div id="docs-modal" class="hidden fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[85vh] flex flex-col overflow-hidden">
+            <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-950">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-lightbulb text-amber-500 text-lg"></i>
+                    <h2 class="font-bold text-slate-800 dark:text-slate-100 text-sm">How Apple Notes Search Works: Technical Breakdown</h2>
+                </div>
+                <button id="btn-close-docs" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-base">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar text-xs leading-relaxed space-y-4 text-slate-700 dark:text-slate-300">
+                <section>
+                    <h3 class="font-bold text-amber-600 dark:text-amber-400 text-sm mb-1">1. Apple Notes Core Search Architecture</h3>
+                    <p>Apple Notes utilizes Apple's native <strong>Core Spotlight</strong> and <strong>Vision Framework</strong> on iOS/macOS devices to power its instant multi-modal search engine:</p>
+                    <ul class="list-disc pl-5 mt-1.5 space-y-1">
+                        <li><strong>Inverted Token Indexing:</strong> Notes and metadata are indexed into localized Spotlight indexes on-device for zero-latency retrieval.</li>
+                        <li><strong>Top Hits Algorithm:</strong> Ranks results based on query frequency, recent editing timestamp, exact lexical match location (title vs body), and token affinity.</li>
+                        <li><strong>Tokenization & Natural Language Parsing:</strong> Converts dynamic phrases (e.g., "notes with receipts from last week") into search tokens (`filter:attachment`, `tag:receipt`, `date:last-week`).</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="font-bold text-amber-600 dark:text-amber-400 text-sm mb-1">2. Handwriting & OCR Processing (Vision Framework)</h3>
+                    <p>Apple Pencil strokes and scanned documents are automatically processed via background OCR pipelines:</p>
+                    <ul class="list-disc pl-5 mt-1.5 space-y-1">
+                        <li><strong>Stroke Recognition:</strong> Vector handwriting paths are parsed into recognized string tokens with confidence scores.</li>
+                        <li><strong>Object Classification:</strong> Images embedded in notes are analyzed offline using CoreML vision classifiers to recognize entities (e.g., "cat", "car", "receipt", "sketch").</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3 class="font-bold text-amber-600 dark:text-amber-400 text-sm mb-1">3. Privacy & Locked Notes Handling</h3>
+                    <p>Locked notes are encrypted using AES-256. To prevent search leakage:</p>
+                    <ul class="list-disc pl-5 mt-1.5 space-y-1">
+                        <li>Locked note titles and encrypted content tokens are <em>excluded</em> from full text query matches unless unlocked by biometric authentication/passcode during active search session.</li>
+                    </ul>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Sample Initial Data Set
+        const INITIAL_NOTES = [
+            {
+                id: 'note-1',
+                title: 'Architecture Review & System Diagram',
+                body: 'Discussing the new Apple Spotlight index integration. Need to review performance metrics on iOS 18.',
+                folder: 'work',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+                isLocked: false,
+                tags: ['architecture', 'apple', 'spotlight'],
+                attachments: [
+                    {
+                        type: 'image',
+                        name: 'Whiteboard Sketch.png',
+                        ocrText: 'Microservices architecture with API Gateway latency under 20ms',
+                        objectsDetected: ['diagram', 'chart', 'whiteboard', 'sketch']
+                    }
+                ]
+            },
+            {
+                id: 'note-2',
+                title: 'Coffee Shop Receipt & Expenses',
+                body: 'Spent $14.50 at Blue Bottle Coffee during team sync.',
+                folder: 'personal',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(),
+                isLocked: false,
+                tags: ['finance', 'receipts'],
+                attachments: [
+                    {
+                        type: 'ocr_document',
+                        name: 'Blue_Bottle_Receipt.jpg',
+                        ocrText: 'Blue Bottle Coffee San Francisco Receipt Total: $14.50 Tax: $1.20',
+                        objectsDetected: ['receipt', 'paper', 'coffee', 'text']
+                    }
+                ]
+            },
+            {
+                id: 'note-3',
+                title: 'Handwritten Brainstorming Notes',
+                body: 'Scanned handwritten notes from the product planning session.',
+                folder: 'work',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
+                isLocked: false,
+                tags: ['brainstorm', 'handwriting'],
+                attachments: [
+                    {
+                        type: 'handwriting',
+                        name: 'ApplePencil_Notes.png',
+                        ocrText: 'Build flexible token filters, support OCR text search, natural language search like "notes with images"',
+                        objectsDetected: ['handwriting', 'pen', 'paper']
+                    }
+                ]
+            },
+            {
+                id: 'note-4',
+                title: 'Confidential Strategy & Passwords',
+                body: 'Master admin credentials and strategic key metrics for Q4 roadmap.',
+                folder: 'work',
+                updatedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).toISOString(),
+                isLocked: true,
+                tags: ['security', 'confidential'],
+                attachments: []
+            }
+        ];
+
+        // Global State Management
+        const state = {
+            notes: JSON.parse(localStorage.getItem('apple_notes_data')) || INITIAL_NOTES,
+            activeNoteId: 'note-1',
+            activeFolder: 'all',
+            searchQuery: '',
+            activeTokens: [],
+            unlockedNotes: new Set(),
+            passcode: '1234'
+        };
+
+        // Apple-like Smart Search Engine
+        class AppleSearchEngine {
+            constructor() {
+                this.nlpKeywords = {
+                    'images': { type: 'filter', value: 'has:image', label: 'Has Image' },
+                    'image': { type: 'filter', value: 'has:image', label: 'Has Image' },
+                    'photos': { type: 'filter', value: 'has:image', label: 'Has Image' },
+                    'handwriting': { type: 'filter', value: 'has:ocr', label: 'Handwritten' },
+                    'receipts': { type: 'filter', value: 'has:ocr', label: 'Receipts/OCR' },
+                    'locked': { type: 'filter', value: 'is:locked', label: 'Locked Note' }
+                };
+            }
+
+            // Parse Query into Natural Language Tokens & Search Term
+            parseQuery(queryStr) {
+                const tokens = [...state.activeTokens];
+                let cleanQuery = queryStr.toLowerCase().trim();
+
+                // Natural Language Filter Tokenization
+                Object.keys(this.nlpKeywords).forEach(kw => {
+                    if (cleanQuery.includes(kw)) {
+                        const tokenObj = this.nlpKeywords[kw];
+                        if (!tokens.some(t => t.value === tokenObj.value)) {
+                            tokens.push(tokenObj);
+                        }
+                    }
+                });
+
+                return {
+                    tokens,
+                    searchTerm: cleanQuery
+                };
+            }
+
+            // Score and Rank Notes (Top Hits Engine)
+            searchNotes(notes, queryStr) {
+                const { tokens, searchTerm } = this.parseQuery(queryStr);
+
+                let filtered = notes.filter(note => {
+                    // Folder Filtering
+                    if (state.activeFolder !== 'all' && note.folder !== state.activeFolder) return false;
+
+                    // Apply Active Token Filters
+                    for (const token of tokens) {
+                        if (token.value === 'has:image') {
+                            const hasImg = note.attachments?.some(a => a.type === 'image' || a.objectsDetected?.includes('image'));
+                            if (!hasImg) return false;
+                        }
+                        if (token.value === 'has:ocr') {
+                            const hasOCR = note.attachments?.some(a => a.ocrText && a.ocrText.length > 0);
+                            if (!hasOCR) return false;
+                        }
+                        if (token.value === 'is:locked') {
+                            if (!note.isLocked) return false;
+                        }
+                    }
+
+                    // Content Search Match
+                    if (!searchTerm) return true;
+
+                    // Locked notes hiding unless unlocked
+                    if (note.isLocked && !state.unlockedNotes.has(note.id)) {
+                        return note.title.toLowerCase().includes(searchTerm);
+                    }
+
+                    // Check Title Match
+                    if (note.title.toLowerCase().includes(searchTerm)) return true;
+
+                    // Check Body Match
+                    if (note.body.toLowerCase().includes(searchTerm)) return true;
+
+                    // Check Tag Match
+                    if (note.tags.some(t => t.toLowerCase().includes(searchTerm))) return true;
+
+                    // Check OCR & Object Detection Match (Vision Simulation)
+                    if (note.attachments) {
+                        for (const att of note.attachments) {
+                            if (att.ocrText && att.ocrText.toLowerCase().includes(searchTerm)) return true;
+                            if (att.objectsDetected && att.objectsDetected.some(obj => obj.toLowerCase().includes(searchTerm))) return true;
+                        }
+                    }
+
+                    return false;
+                });
+
+                // Calculate Top Hits Scores
+                const scoredResults = filtered.map(note => {
+                    let score = 0;
+                    if (searchTerm) {
+                        const term = searchTerm.toLowerCase();
+                        if (note.title.toLowerCase().startsWith(term)) score += 50;
+                        else if (note.title.toLowerCase().includes(term)) score += 30;
+
+                        if (note.body.toLowerCase().includes(term)) score += 10;
+
+                        // Attachment / OCR Matches boost
+                        note.attachments?.forEach(att => {
+                            if (att.ocrText?.toLowerCase().includes(term)) score += 25;
+                            if (att.objectsDetected?.some(o => o.toLowerCase().includes(term))) score += 20;
+                        });
+                    }
+
+                    // Recency Boost
+                    const hoursOld = (Date.now() - new Date(note.updatedAt).getTime()) / (1000 * 60 * 60);
+                    score += Math.max(0, 20 - hoursOld);
+
+                    return { note, score };
+                });
+
+                // Sort descending by score
+                scoredResults.sort((a, b) => b.score - a.score);
+
+                return {
+                    topHits: scoredResults.filter(r => r.score >= 40).map(r => r.note),
+                    allHits: scoredResults.map(r => r.note)
+                };
+            }
+        }
+
+        const searchEngine = new AppleSearchEngine();
+
+        const elements = {
+            searchInput: document.getElementById('search-input'),
+            searchClear: document.getElementById('search-clear'),
+            notesListContainer: document.getElementById('notes-list-container'),
+            activeTokensBar: document.getElementById('active-tokens-bar'),
+            noteTitleInput: document.getElementById('note-title-input'),
+            noteBodyInput: document.getElementById('note-body-input'),
+            noteDateDisplay: document.getElementById('note-date-display'),
+            noteCategoryBadge: document.getElementById('note-category-badge'),
+            attachmentsSection: document.getElementById('attachments-section'),
+            attachmentsContainer: document.getElementById('attachments-container'),
+            editorUnlockedView: document.getElementById('editor-unlocked-view'),
+            editorLockedView: document.getElementById('editor-locked-view'),
+            unlockPasscodeInput: document.getElementById('unlock-passcode-input'),
+            btnUnlockNote: document.getElementById('btn-unlock-note'),
+            btnToggleLock: document.getElementById('btn-toggle-lock'),
+            lockIcon: document.getElementById('lock-icon'),
+            btnDeleteNote: document.getElementById('btn-delete-note'),
+            btnNewNote: document.getElementById('btn-new-note'),
+            themeToggle: document.getElementById('theme-toggle'),
+            docsModal: document.getElementById('docs-modal'),
+            btnShowDocs: document.getElementById('btn-show-docs'),
+            btnCloseDocs: document.getElementById('btn-close-docs'),
+            smartTokensContainer: document.getElementById('smart-tokens-container'),
+            editorFolderName: document.getElementById('editor-folder-name')
+        };
+
+        // Helper to Highlight Query Text Matches safely
+        function highlightText(text, query) {
+            if (!query || !text) return text;
+            const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            return text.replace(regex, '<mark class="highlight-match">$1</mark>');
+        }
+
+        function renderFolderCounts() {
+            const allCount = state.notes.length;
+            const workCount = state.notes.filter(n => n.folder === 'work').length;
+            const personalCount = state.notes.filter(n => n.folder === 'personal').length;
+
+            document.getElementById('count-all').textContent = allCount;
+            document.getElementById('count-work').textContent = workCount;
+            document.getElementById('count-personal').textContent = personalCount;
+        }
+
+        function renderSmartTokenChips() {
+            const tokens = [
+                { label: 'Has OCR Text', value: 'has:ocr', icon: 'fa-file-lines' },
+                { label: 'Has Image', value: 'has:image', icon: 'fa-image' },
+                { label: 'Locked Notes', value: 'is:locked', icon: 'fa-lock' }
+            ];
+
+            elements.smartTokensContainer.innerHTML = tokens.map(t => `
+                <button data-value="${t.value}" data-label="${t.label}" 
+                    class="token-chip flex items-center gap-1.5 px-2 py-1 bg-slate-200/70 dark:bg-slate-800/80 hover:bg-amber-500/20 text-slate-700 dark:text-slate-300 rounded-md text-[11px] font-medium transition">
+                    <i class="fa-solid ${t.icon} text-amber-500 text-[10px]"></i>
+                    <span>${t.label}</span>
+                </button>
+            `).join('');
+        }
+
+        function renderActiveTokens() {
+            if (state.activeTokens.length === 0) {
+                elements.activeTokensBar.classList.add('hidden');
+                return;
+            }
+
+            elements.activeTokensBar.classList.remove('hidden');
+            elements.activeTokensBar.innerHTML = state.activeTokens.map((t, idx) => `
+                <span class="inline-flex items-center gap-1 bg-amber-500/20 text-amber-800 dark:text-amber-300 px-2 py-0.5 rounded-full text-[10px] font-semibold">
+                    <span>${t.label}</span>
+                    <button data-token-idx="${idx}" class="remove-token hover:text-red-500 text-[10px] ml-0.5">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        function renderNotesList() {
+            const query = elements.searchInput.value.trim();
+            const { topHits, allHits } = searchEngine.searchNotes(state.notes, query);
+
+            elements.notesListContainer.innerHTML = '';
+
+            if (allHits.length === 0) {
+                elements.notesListContainer.innerHTML = `
+                    <div class="p-8 text-center text-slate-400">
+                        <i class="fa-solid fa-magnifying-glass text-2xl mb-2 text-slate-300 dark:text-slate-700"></i>
+                        <p class="text-xs font-medium">No Notes Found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Top Hits Section if query exists
+            if (query && topHits.length > 0) {
+                const topHitsHeader = document.createElement('div');
+                topHitsHeader.className = 'px-3 py-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold text-[10px] uppercase tracking-wider flex items-center gap-1';
+                topHitsHeader.innerHTML = `<i class="fa-solid fa-star text-[9px]"></i> Top Hits`;
+                elements.notesListContainer.appendChild(topHitsHeader);
+
+                topHits.forEach(note => {
+                    elements.notesListContainer.appendChild(createNoteListItem(note, query, true));
+                });
+
+                const allHitsHeader = document.createElement('div');
+                allHitsHeader.className = 'px-3 py-1.5 bg-slate-200/50 dark:bg-slate-800/50 text-slate-500 font-bold text-[10px] uppercase tracking-wider mt-1';
+                allHitsHeader.textContent = 'All Matching Notes';
+                elements.notesListContainer.appendChild(allHitsHeader);
+            }
+
+            // Render Remaining Hits
+            allHits.forEach(note => {
+                if (!query || !topHits.some(th => th.id === note.id)) {
+                    elements.notesListContainer.appendChild(createNoteListItem(note, query, false));
+                }
+            });
+        }
+
+        function createNoteListItem(note, query, isTopHit) {
+            const item = document.createElement('div');
+            const isActive = note.id === state.activeNoteId;
+
+            item.className = `p-3 cursor-pointer transition flex flex-col gap-1 border-b border-slate-200/50 dark:border-slate-800/50 ${
+                isActive ? 'bg-amber-500/15 dark:bg-amber-500/20 border-l-4 border-l-amber-500' : 'hover:bg-slate-100 dark:hover:bg-slate-900/60'
+            }`;
+
+            const formattedDate = new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            
+            // Highlighted content
+            const displayTitle = highlightText(note.title, query);
+            let displaySnippet = '';
+
+            if (note.isLocked && !state.unlockedNotes.has(note.id)) {
+                displaySnippet = '🔒 Locked Note - Passcode required';
+            } else {
+                displaySnippet = highlightText(note.body.substring(0, 70) + (note.body.length > 70 ? '...' : ''), query);
+            }
+
+            item.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <h4 class="font-bold text-xs text-slate-800 dark:text-slate-100 truncate flex items-center gap-1.5">
+                        ${note.isLocked ? '<i class="fa-solid fa-lock text-amber-500 text-[10px]"></i>' : ''}
+                        <span>${displayTitle}</span>
+                    </h4>
+                    <span class="text-[10px] text-slate-400 flex-shrink-0">${formattedDate}</span>
+                </div>
+                <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">${displaySnippet}</p>
+                <div class="flex items-center gap-1 mt-1">
+                    ${note.attachments?.some(a => a.ocrText) ? '<span class="text-[9px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 rounded text-slate-600 dark:text-slate-400">OCR</span>' : ''}
+                    ${note.attachments?.some(a => a.type === 'image') ? '<span class="text-[9px] bg-slate-200 dark:bg-slate-800 px-1.5 py-0.2 rounded text-slate-600 dark:text-slate-400"><i class="fa-regular fa-image"></i></span>' : ''}
+                </div>
+            `;
+
+            item.addEventListener('click', () => {
+                state.activeNoteId = note.id;
+                renderNotesList();
+                renderActiveNote();
+            });
+
+            return item;
+        }
+
+        function renderActiveNote() {
+            const note = state.notes.find(n => n.id === state.activeNoteId);
+            if (!note) return;
+
+            elements.editorFolderName.textContent = note.folder.toUpperCase();
+
+            // Handle Locked Note Security Display
+            if (note.isLocked && !state.unlockedNotes.has(note.id)) {
+                elements.editorUnlockedView.classList.add('hidden');
+                elements.editorLockedView.classList.remove('hidden');
+                elements.lockIcon.className = 'fa-solid fa-lock text-amber-500';
+                return;
+            }
+
+            elements.editorUnlockedView.classList.remove('hidden');
+            elements.editorLockedView.classList.add('hidden');
+            elements.lockIcon.className = note.isLocked ? 'fa-solid fa-lock text-amber-500' : 'fa-solid fa-lock-open text-slate-400';
+
+            // Populate Editor Inputs
+            elements.noteTitleInput.value = note.title;
+            elements.noteBodyInput.innerText = note.body;
+            elements.noteDateDisplay.textContent = new Date(note.updatedAt).toLocaleString();
+            elements.noteCategoryBadge.textContent = note.folder;
+
+            // Render Attachments
+            elements.attachmentsContainer.innerHTML = '';
+            if (note.attachments && note.attachments.length > 0) {
+                elements.attachmentsSection.classList.remove('hidden');
+                note.attachments.forEach(att => {
+                    const attCard = document.createElement('div');
+                    attCard.className = 'p-3 bg-slate-100 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-800 flex flex-col gap-2 text-xs';
+                    attCard.innerHTML = `
+                        <div class="flex items-center justify-between text-slate-700 dark:text-slate-300 font-semibold">
+                            <span class="flex items-center gap-1.5">
+                                <i class="fa-solid fa-paperclip text-amber-500"></i> ${att.name}
+                            </span>
+                            <span class="text-[10px] text-slate-400 uppercase tracking-wider">${att.type}</span>
+                        </div>
+                        ${att.ocrText ? `
+                            <div class="bg-white dark:bg-slate-900 p-2 rounded text-[11px] border border-slate-200/60 dark:border-slate-800 text-slate-600 dark:text-slate-400">
+                                <strong class="text-amber-600 dark:text-amber-400">Vision OCR Indexed Text:</strong>
+                                <p class="mt-0.5 italic">"${att.ocrText}"</p>
+                            </div>
+                        ` : ''}
+                        ${att.objectsDetected ? `
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${att.objectsDetected.map(o => `<span class="bg-amber-500/10 text-amber-700 dark:text-amber-300 px-1.5 py-0.5 rounded text-[10px]">#${o}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    `;
+                    elements.attachmentsContainer.appendChild(attCard);
+                });
+            } else {
+                elements.attachmentsSection.classList.add('hidden');
+            }
+        }
+
+        function setupEventListeners() {
+            // Search Input Event
+            elements.searchInput.addEventListener('input', (e) => {
+                const val = e.target.value;
+                elements.searchClear.classList.toggle('hidden', val.length === 0);
+                renderNotesList();
+            });
+
+            elements.searchClear.addEventListener('click', () => {
+                elements.searchInput.value = '';
+                elements.searchClear.classList.add('hidden');
+                renderNotesList();
+            });
+
+            // Unlock Passcode Handler
+            elements.btnUnlockNote.addEventListener('click', () => {
+                if (elements.unlockPasscodeInput.value === state.passcode) {
+                    state.unlockedNotes.add(state.activeNoteId);
+                    elements.unlockPasscodeInput.value = '';
+                    renderActiveNote();
+                    renderNotesList();
+                } else {
+                    alert('Incorrect passcode! Default passcode is 1234');
+                }
+            });
+
+            // Toggle Lock Status
+            elements.btnToggleLock.addEventListener('click', () => {
+                const note = state.notes.find(n => n.id === state.activeNoteId);
+                if (!note) return;
+
+                note.isLocked = !note.isLocked;
+                if (!note.isLocked) state.unlockedNotes.delete(note.id);
+                saveNotes();
+                renderActiveNote();
+                renderNotesList();
+            });
+
+            // Title & Body Auto-Save Edit Event
+            elements.noteTitleInput.addEventListener('input', (e) => {
+                const note = state.notes.find(n => n.id === state.activeNoteId);
+                if (note) {
+                    note.title = e.target.value;
+                    note.updatedAt = new Date().toISOString();
+                    saveNotes();
+                    renderNotesList();
+                }
+            });
+
+            elements.noteBodyInput.addEventListener('input', (e) => {
+                const note = state.notes.find(n => n.id === state.activeNoteId);
+                if (note) {
+                    note.body = e.target.innerText;
+                    note.updatedAt = new Date().toISOString();
+                    saveNotes();
+                    renderNotesList();
+                }
+            });
+
+            // New Note
+            elements.btnNewNote.addEventListener('click', () => {
+                const newNote = {
+                    id: 'note-' + Date.now(),
+                    title: 'Untitled Note',
+                    body: 'Type here...',
+                    folder: state.activeFolder === 'all' ? 'work' : state.activeFolder,
+                    updatedAt: new Date().toISOString(),
+                    isLocked: false,
+                    tags: [],
+                    attachments: []
+                };
+                state.notes.unshift(newNote);
+                state.activeNoteId = newNote.id;
+                saveNotes();
+                renderFolderCounts();
+                renderNotesList();
+                renderActiveNote();
+            });
+
+            // Delete Note
+            elements.btnDeleteNote.addEventListener('click', () => {
+                if (state.notes.length <= 1) return;
+                state.notes = state.notes.filter(n => n.id !== state.activeNoteId);
+                state.activeNoteId = state.notes[0].id;
+                saveNotes();
+                renderFolderCounts();
+                renderNotesList();
+                renderActiveNote();
+            });
+
+            // Folder Switch
+            document.querySelectorAll('.folder-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.folder-btn').forEach(b => b.classList.remove('bg-amber-500/15', 'text-amber-700', 'dark:text-amber-400'));
+                    const target = e.currentTarget;
+                    target.classList.add('bg-amber-500/15', 'text-amber-700', 'dark:text-amber-400');
+                    state.activeFolder = target.dataset.folder;
+                    renderNotesList();
+                });
+            });
+
+            // Token Clicks
+            elements.smartTokensContainer.addEventListener('click', (e) => {
+                const chip = e.target.closest('.token-chip');
+                if (!chip) return;
+                const value = chip.dataset.value;
+                const label = chip.dataset.label;
+
+                if (!state.activeTokens.some(t => t.value === value)) {
+                    state.activeTokens.push({ value, label });
+                    renderActiveTokens();
+                    renderNotesList();
+                }
+            });
+
+            // Remove Token Handler
+            elements.activeTokensBar.addEventListener('click', (e) => {
+                const btn = e.target.closest('.remove-token');
+                if (!btn) return;
+                const idx = parseInt(btn.dataset.tokenIdx);
+                state.activeTokens.splice(idx, 1);
+                renderActiveTokens();
+                renderNotesList();
+            });
+
+            // Theme Toggle
+            elements.themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+            });
+
+            // Documentation Modal Toggle
+            elements.btnShowDocs.addEventListener('click', () => elements.docsModal.classList.remove('hidden'));
+            elements.btnCloseDocs.addEventListener('click', () => elements.docsModal.classList.add('hidden'));
+        }
+
+        function saveNotes() {
+            localStorage.setItem('apple_notes_data', JSON.stringify(state.notes));
+        }
+
+        window.onload = function() {
+            renderFolderCounts();
+            renderSmartTokenChips();
+            renderNotesList();
+            renderActiveNote();
+            setupEventListeners();
+        };
+    </script>
+</body>
+</html>
